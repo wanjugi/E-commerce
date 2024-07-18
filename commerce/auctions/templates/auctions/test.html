@@ -1,0 +1,145 @@
+{% extends "auctions/layout.html" %}
+
+{% block body %}
+
+    <div class="container">
+        {% if message %}
+            {% if updated %}
+            <div class="alert alert-success" role="alert">
+                {{ message }}
+            </div>
+            {% else %}
+            <div class="alert alert-danger" role="alert">
+                {{ message }}
+           </div>
+           {% endif %}
+
+        {% endif %}
+    </div>
+
+    <div class="row">
+        {% if user.is_authenticated %}
+            {% if not ListingInWatchlist %}
+                <form action="{% url 'addWatchlist' listing.id %}" method="POST">
+                   {% csrf_token %}
+                <button type="hidden" class="btn btn-success"> Add To Watchlist</button>
+                </form>
+
+            {% else %}
+                <form action="{% url 'removeWatchlist' listing.id %}" method="POST">
+                  {% csrf_token %}
+                <button type="hidden" class="btn btn-warning"> Remove From Watchlist</button>
+                </form>
+            {% endif %}
+        {% endif %}
+    </div>
+
+
+
+    <h2>Motorbike: {{listing.title}}</h2>
+    <img src="{{ listing.imageUrl }}" alt="{{ listing.title }}" height="300px">
+    <p> {{ listing.description }}</p>
+    <p>Owner: {{ listing.owner }}</p>
+    <h6>Initial Price: ${{ listing.price.bid }}</h6>
+    
+    {% if user.is_authenticated %}
+       <form action="{% url 'addBid' listing.id %}" method="POST">
+           {% csrf_token %}
+           <div class="form-group">
+               <label for="Addbid">Add Bid:</label>
+               <input type="number" min="0" name="newBid" placeholder="">
+               <button type ="submit" class="btn btn-success"> Submit</button>
+           </div>
+       </form>
+    {% endif %}
+    
+    <h4>Comments</h4>
+    {% if user.is_authenticated %}
+        <form action="{% url 'addComment' listing.id %}" method="POST">
+            {% csrf_token %}
+            <div class="form-group">
+                <label for="Addcomment">Add Comment:</label>
+                <input type="text" name="newComment" placeholder="">
+                <button type ="submit" class="btn btn-info"> Submit</button>
+            </div>
+        </form>
+    {% endif %}
+    <br/>
+    <ul class="list-group">
+      {% for comment in allComments %}
+        <li class="list-group-item">
+            {{ comment.message }}
+            <br/>
+            <p>Posted by: <strong>{{ comment.author }}</strong></p>
+        </li>
+      {% endfor %} 
+
+    </ul>
+      
+
+    
+
+    
+    
+{% endblock %}
+
+
+
+
+def addBid(request, id):
+    newBid = request.POST.get('newBid')
+    listingInfo = Listing.objects.get(pk=id)
+
+    if newBid is not None and newBid.isdigit() and newBid > listingInfo.price.bid:
+        updateBid = Bid(user=request.user, bid=newBid)
+        updateBid.save()
+        listingInfo.price = updateBid
+        listingInfo.save()
+        return render(request, "auctions/listing.html",{
+            "listing": listingInfo,
+            "message": "BID UPDATE WAS SUCCESSFULL",
+            "update": True,
+            
+        })
+    else:
+        return render(request, "auctions/listing.html",{
+            "listing": listingInfo,
+            "message": "BID UPDATE FAILED",
+            "update": False,
+            
+        })
+
+
+------------------------------------------------------------------------
+
+
+
+{% if message %}
+            {% if updated %}
+            <div class="alert alert-success" role="alert">
+                {{ message }}
+            </div>
+            {% else %}
+            <div class="alert alert-danger" role="alert">
+                {{ message }}
+           </div>
+           {% endif %}
+
+        {% endif %}
+    </div>
+
+
+
+
+
+    def listing(request, id):
+    listingInfo = Listing.objects.get(pk=id)
+    ListingInWatchlist = listingInfo.watchlist.filter(pk=request.user.id)
+    allComments = Comment.objects.filter(listing=listingInfo)
+    isOwner = request.user.username == listingInfo.owner.username
+    return render(request, 'auctions/listing.html', {
+        'listing': listingInfo,
+        'ListingInWatchlist': ListingInWatchlist,
+        "allComments":allComments,
+        "isOwner":isOwner
+    })
